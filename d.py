@@ -4,15 +4,27 @@
 # go to file --> Local Disk ( D: ) --> create a new folder by your name (eg ML)
 # App.py --> create this file on “IDLE” --> in that write -->  print(“hello world”) --> save the in Local Disk ( D: ) then go   select the ML folder save in the as aap.py
 # requirements.txt --> create this file on “Notepad” --> in that write --> 
-flask
+mlflow
+scikit-learn
 numpy
-pillow
+
+
 # Dockerfile --> create this file on “Notepad” --> in that write -->
+# Use a lightweight Python base image
 FROM python:3.10-slim
+
+# Set working directory inside container
 WORKDIR /app
+
+# Copy project files into the container
 COPY . /app
-RUN pip install --ni-cache-dir -r requirements.txt
-CMD ["python", "app.py"]
+
+# Install dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Run your script
+CMD ["python", "pract.py"]
+
 
 # cmd-->
 # cd ML
