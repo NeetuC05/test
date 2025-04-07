@@ -1,139 +1,113 @@
-import math
+import tensorflow as tf
+import numpy as np
 
-# Function to display the Tic-Tac-Toe board
-def print_board(board):
-    for row in board:
-        print('|'.join(row))
-    print('\n')
-    
-# Function to check if there are any moves left 
-def is_moves_left(board):
-    for row in board:
-        if " " in row:
-            return True
-    return False
+# Create an instance of MirroredStrategy
+strategy = tf.distribute.MirroredStrategy()
 
-# Function to evaluate the board
-def evaluate(board):
-    # Check rows and columns for win
-    for row in board:
-        if row[0] == row[1] == row[2] and row[0] != " ":
-            return 10 if row[0] == 'X' else -10
-    
-    for col in range(3):
-        if board[0][col] == board[1][col] == board[2][col] and board[0][col] !=" ":
-            return 10 if board[0][col] == 'X' else -10
-        
-    # Check diagonals for win
-    if board[0][0] == board[1][1] == board[2][2] and board[0][0] !=" ":
-        return 10 if board[0][0] == "X" else -10
-    
-    if board[0][2] == board[1][1] == board[2][0] and board[0][2] !=" ":
-        return 10 if board[0][2] == 'X' else -10
-    
-    return 0
+def dataset():
+    (x_train,y_train),(x_test,y_test)=tf.keras.datasets.mnist.load_data()
+    x_train,x_test=x_train/255,x_test/255
+    return(x_train,y_train),(x_test,y_test)
+(x_train,y_train),(x_test,y_test)= dataset()
+#print(x_train)
 
-# Minimax algorithm implementation
-def minimax(board, depth, is_max):
-    score = evaluate(board)
-    
-    #If Maximizer (AI) wins
-    if score == 10:
-        return score - depth
-    
-    #If Minimizer (human) wins
-    if score == -10:
-        return score + depth
-    
-    #If no more moves left (draw)
-    if not is_moves_left(board):
-        return 0
-    
-    #Maximizer's move 
-    if is_max:
-        best = -math.inf
-        for i in range(3):
-            for j in range(3):
-                if board[i][j] == " ":
-                    board[i][j] = "X"
-                    best = max(best, minimax(board, depth + 1, False))
-                    board[i][j]=" "
-        return best
-    
-    # Minimizer's move
-    else:
-        best = math.inf
-        for i in range(3):
-            for j in range(3):
-                if board[i][j] ==' ':
-                    board[i][j] = '0'
-                    best = min(best, minimax(board, depth + 1, True))
-                    board[i][j] = " "
-        return best
-    
-# Function to find the best move for the AI
-def find_best_move(board):
-    best_val = -math.inf
-    best_move = (-1, -1)
-    
-    for i in range(3):
-        for j in range(3):
-            if board[i][j] == " ":
-                board[i][j] = 'X'
-                move_val = minimax(board, 0, False)
-                board[i][j]= ' '
-                if move_val > best_val:
-                    best_val = move_val
-                    best_move = (i,j)
-                    
-    return best_move
+# Now you can access num_replicas_in_sync
+batchsize=128*strategy.num_replicas_in_sync
+train_dataset = tf.data.Dataset.from_tensor_slices((x_train,y_train)).shuffle(25000).batch(batchsize)
+test_dataset = tf.data.Dataset.from_tensor_slices((x_test,y_test)).batch(batchsize)
 
-# Main function to play the game
-def play_tic_tac_toe():
-    board = [[" " for _ in range(3)] for _ in range(3)]
-    print("Tic-Tac-Toe!")
-    print_board(board)
-    
-    while True:
-        # Human's move
-        print("Your turn (0):")
-        while True:
-            try:
-                row, col = map(int, input("Enter row and column (0, 1, 2): ").split())
-                if board[row][col] == " ":
-                    board[row][col] = '0'
-                    break
-                else:
-                    print('Cell already occupied, try again.')
-            except:
-                print('Invalid input. Enter two numbers separated by a space (e.g., 0 1).')
-        print_board(board)
-        
-        #Check if human won
-        if evaluate(board) == -10:
-            print('You win!')
-            break
-            
-        #Check for draw
-        if not is_moves_left(board):
-            print("It's a Dwar!")
-            break
-            
-        #AI's move
-        print("AI's turn (X):")
-        best_move = find_best_move(board)
-        board[best_move[0]][best_move[1]] = 'X'
-        print_board(board)
-        
-        #Check if AI won
-        if evaluate(board) == 10:
-            print('AI wins!')
-            break
-            
-        #Check for Draw
-        if not is_moves_left(board):
-            print("It's a Draw!")
-            break
-            
-# Run the game
-play_tic_tac_toe()
+with strategy.scope():
+    model=tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(28,28)), # Use Flatten instead of Flattened
+        tf.keras.layers.Dense(128,activation='relu'),
+        tf.keras.layers.Dense(10,activation='softmax')
+        ])
+    model.compile(optimizer='adam',loss='sparse_categorical_crossentropy',metrics=['accuracy'])
+
+model.fit(train_dataset,epochs=10,validation_data=test_dataset) # Change epoch to epochs
+loss,accuracy=model.evaluate(test_dataset)
+print(accuracy)
+
+
+
+import tensorflow as tf
+import numpy as np
+
+
+strategy = tf.distribute.MirroredStrategy()
+
+def dataset():
+    (x_train,y_train),(x_test,y_test)=tf.keras.datasets.imdb.load_data(num_words=10000)
+    x_train=tf.keras.preprocessing.sequence.pad_sequences(x_train,value=0,padding='post',maxlen=500)
+    x_test=tf.keras.preprocessing.sequence.pad_sequences(x_test,value=0,padding='post',maxlen=500)
+
+    return(x_train,y_train),(x_test,y_test)
+(x_train,y_train),(x_test,y_test)= dataset()
+
+batchsize=128*strategy.num_replicas_in_sync
+train_dataset = tf.data.Dataset.from_tensor_slices((x_train,y_train)).shuffle(50000).batch(batchsize)
+test_dataset = tf.data.Dataset.from_tensor_slices((x_test,y_test)).batch(batchsize)
+
+with strategy.scope():
+    model=tf.keras.models.Sequential([
+       tf.keras.layers.Embedding(10000,128,input_length=500),
+       tf.keras.layers.LSTM(64,return_sequences=True),
+       tf.keras.layers.LSTM(32),
+       tf.keras.layers.Dense(10,activation='relu'),
+       tf.keras.layers.Dense(1,activation='sigmoid')
+        ])
+    model.compile(optimizer='adam',loss='binary_crossentropy',metrics=['accuracy'])
+
+model.fit(train_dataset,epochs=10,validation_data=test_dataset)
+loss,accuracy=model.evaluate(test_dataset)
+print(accuracy)
+
+
+
+# scaling
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+
+# Define model
+def simple_nn():
+    return nn.Linear(10, 1)
+
+# Dummy data
+x = torch.randn(100, 10)
+y = torch.randn(100, 1)
+
+# Create dataset and dataloader
+dataset = TensorDataset(x, y)
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+
+# Choose device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Initialize model
+model = simple_nn().to(device)
+
+# Wrap with DataParallel if using multiple GPUs
+if torch.cuda.device_count() > 1:
+    print(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
+    model = nn.DataParallel(model)
+
+# Loss and optimizer
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Training loop
+for epoch in range(8):
+    for batch in dataloader:
+        inputs, labels = batch
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+    print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
