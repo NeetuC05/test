@@ -1,4 +1,4 @@
-# 
+# wsl --unregister Ubuntu
 # wsl --install -d Ubuntu
 #d:
 # go to file --> Local Disk ( D: ) --> create a new folder by your name (eg ML)
